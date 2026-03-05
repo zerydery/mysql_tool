@@ -9,8 +9,9 @@ Usage:
     python mysql_backup_restore.py
 """
 
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
 import subprocess
 import threading
 import os
@@ -18,6 +19,9 @@ import json
 import datetime
 import shutil
 import sys
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 # ─────────────────────────────────────────────────────────
 # Configuration file (saved next to this script)
@@ -90,85 +94,34 @@ def find_mysql_exe(name):
 # ─────────────────────────────────────────────────────────
 # Main Application
 # ─────────────────────────────────────────────────────────
-class MySQLBackupApp(tk.Tk):
+class MySQLBackupApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("MySQL Backup & Restore Tool")
-        self.geometry("860x640")
-        self.resizable(True, True)
+        self.geometry("900x700")
+        self.minsize(800, 600)
         self.config = load_config()
 
-        self._apply_theme()
         self._build_ui()
         self._load_config_to_ui()
-
-    # ── Theme ─────────────────────────────────────────────
-    def _apply_theme(self):
-        self.configure(bg="#1e1e2e")
-        style = ttk.Style(self)
-        style.theme_use("clam")
-
-        bg   = "#1e1e2e"
-        fg   = "#cdd6f4"
-        acc  = "#89b4fa"
-        acc2 = "#313244"
-        entry_bg = "#181825"
-        red  = "#f38ba8"
-        grn  = "#a6e3a1"
-
-        style.configure(".",           background=bg, foreground=fg, font=("Segoe UI", 10))
-        style.configure("TFrame",      background=bg)
-        style.configure("TLabel",      background=bg, foreground=fg)
-        style.configure("TLabelframe", background=bg, foreground=acc, bordercolor=acc2)
-        style.configure("TLabelframe.Label", background=bg, foreground=acc, font=("Segoe UI", 10, "bold"))
-        style.configure("TButton",     background=acc2, foreground=fg, relief="flat", padding=(10, 5))
-        style.map("TButton",
-                  background=[("active", acc), ("pressed", "#7aa2f7")],
-                  foreground=[("active", "#1e1e2e")])
-        style.configure("Accent.TButton", background=acc, foreground="#1e1e2e", font=("Segoe UI", 10, "bold"), padding=(12, 6))
-        style.map("Accent.TButton", background=[("active", "#7aa2f7")])
-        style.configure("Red.TButton",    background=red, foreground="#1e1e2e", font=("Segoe UI", 10, "bold"), padding=(12, 6))
-        style.map("Red.TButton",    background=[("active", "#eb83a0")])
-        style.configure("Green.TButton",  background=grn, foreground="#1e1e2e", font=("Segoe UI", 10, "bold"), padding=(12, 6))
-        style.map("Green.TButton",  background=[("active", "#90d48e")])
-        style.configure("TEntry",      fieldbackground=entry_bg, foreground=fg, insertcolor=fg, relief="flat")
-        style.configure("TCombobox",   fieldbackground=entry_bg, foreground=fg, selectbackground=acc2, selectforeground=fg)
-        style.map("TCombobox", fieldbackground=[("readonly", entry_bg)])
-        style.configure("TNotebook",           background=bg, borderwidth=0)
-        style.configure("TNotebook.Tab",       background=acc2, foreground=fg, padding=(14, 6))
-        style.map("TNotebook.Tab",             background=[("selected", acc)], foreground=[("selected", "#1e1e2e")])
-        style.configure("TScrollbar",          background=acc2, troughcolor=bg, arrowcolor=fg)
-        style.configure("Treeview",            background="#181825", foreground=fg, fieldbackground="#181825", rowheight=24)
-        style.configure("Treeview.Heading",    background=acc2, foreground=acc, font=("Segoe UI", 9, "bold"))
-        style.map("Treeview", background=[("selected", acc)], foreground=[("selected", "#1e1e2e")])
-        style.configure("TCheckbutton", background=bg, foreground=fg)
-        style.configure("TProgressbar", troughcolor=acc2, background=acc)
-
-        self.colors = {"bg": bg, "fg": fg, "acc": acc, "acc2": acc2,
-                       "entry": entry_bg, "red": red, "grn": grn}
 
     # ── UI Builder ────────────────────────────────────────
     def _build_ui(self):
         # Header
-        hdr = tk.Frame(self, bg="#89b4fa", height=56)
+        hdr = ctk.CTkFrame(self, corner_radius=0, fg_color="#1f538d", height=60)
         hdr.pack(fill="x")
-        tk.Label(hdr, text="🗄️  MySQL Backup & Restore Tool",
-                 font=("Segoe UI", 16, "bold"),
-                 bg="#89b4fa", fg="#1e1e2e", pady=10).pack(side="left", padx=20)
+        ctk.CTkLabel(hdr, text="🗄️  MySQL Backup & Restore Tool",
+                     font=ctk.CTkFont(size=20, weight="bold"),
+                     text_color="white").pack(side="left", padx=20, pady=15)
 
-        # Notebook
-        nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True, padx=12, pady=10)
+        # Tabview
+        self.tabview = ctk.CTkTabview(self, width=860)
+        self.tabview.pack(fill="both", expand=True, padx=20, pady=15)
 
-        self.tab_backup  = ttk.Frame(nb)
-        self.tab_restore = ttk.Frame(nb)
-        self.tab_history = ttk.Frame(nb)
-        self.tab_settings = ttk.Frame(nb)
-
-        nb.add(self.tab_backup,  text="  💾 Backup  ")
-        nb.add(self.tab_restore, text="  🔄 Restore  ")
-        nb.add(self.tab_history, text="  📋 History  ")
-        nb.add(self.tab_settings, text="  ⚙️  Settings  ")
+        self.tab_backup = self.tabview.add("  💾 Backup  ")
+        self.tab_restore = self.tabview.add("  🔄 Restore  ")
+        self.tab_history = self.tabview.add("  📋 History  ")
+        self.tab_settings = self.tabview.add("  ⚙️  Settings  ")
 
         self._build_backup_tab()
         self._build_restore_tab()
@@ -176,196 +129,235 @@ class MySQLBackupApp(tk.Tk):
         self._build_settings_tab()
 
         # Status bar
-        self.status_var = tk.StringVar(value="Ready.")
-        sb = tk.Label(self, textvariable=self.status_var, anchor="w",
-                      bg="#313244", fg="#cdd6f4", font=("Segoe UI", 9), pady=4)
-        sb.pack(fill="x", side="bottom", padx=0)
+        self.status_var = ctk.StringVar(value="Ready.")
+        sb = ctk.CTkLabel(self, textvariable=self.status_var, anchor="w",
+                          font=ctk.CTkFont(size=12), fg_color="#2b2b2b", text_color="#a9a9a9", corner_radius=0)
+        sb.pack(fill="x", side="bottom", ipady=5, padx=10)
 
     # ── Backup Tab ────────────────────────────────────────
     def _build_backup_tab(self):
-        p = ttk.Frame(self.tab_backup, padding=16)
+        p = ctk.CTkScrollableFrame(self.tab_backup, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
         # Connection group
-        cg = ttk.LabelFrame(p, text=" 🔌 MySQL Connection ", padding=12)
-        cg.pack(fill="x", pady=(0, 12))
-
-        self._conn_fields_backup = self._make_conn_fields(cg)
-        btn_con = ttk.Button(cg, text="🔗  Connect & List Databases",
-                             command=self._backup_connect, style="Accent.TButton")
-        btn_con.grid(row=4, column=0, columnspan=4, pady=(12, 0), sticky="w")
+        cg = ctk.CTkFrame(p)
+        cg.pack(fill="x", pady=(0, 15), padx=5)
+        # title
+        ctk.CTkLabel(cg, text="🔌 MySQL Connection", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
+        
+        inner_cg = ctk.CTkFrame(cg, fg_color="transparent")
+        inner_cg.pack(fill="x", padx=15, pady=5)
+        self._conn_fields_backup = self._make_conn_fields(inner_cg)
+        
+        btn_con = ctk.CTkButton(cg, text="🔗 Connect & List Databases", command=self._backup_connect, font=ctk.CTkFont(weight="bold"))
+        btn_con.pack(anchor="w", padx=15, pady=(10, 15))
 
         # Database selection
-        dg = ttk.LabelFrame(p, text=" 🗃️  Select Database ", padding=12)
-        dg.pack(fill="x", pady=(0, 12))
+        dg = ctk.CTkFrame(p)
+        dg.pack(fill="x", pady=(0, 15), padx=5)
+        ctk.CTkLabel(dg, text="🗃️ Select Database", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
 
-        self.backup_db_var = tk.StringVar()
-        self.backup_db_combo = ttk.Combobox(dg, textvariable=self.backup_db_var,
-                                            state="readonly", width=40, font=("Segoe UI", 10))
-        self.backup_db_combo.pack(side="left", padx=(0, 12))
-        ttk.Button(dg, text="⟳ Refresh", command=self._backup_connect).pack(side="left")
+        inner_dg = ctk.CTkFrame(dg, fg_color="transparent")
+        inner_dg.pack(fill="x", padx=15, pady=5)
 
-        chk_frame = ttk.Frame(dg)
-        chk_frame.pack(side="right")
-        self.all_db_var = tk.BooleanVar()
-        ttk.Checkbutton(chk_frame, text="Backup ALL databases", variable=self.all_db_var,
-                        command=self._toggle_all_db).pack()
+        self.backup_db_var = ctk.StringVar()
+        self.backup_db_combo = ctk.CTkComboBox(inner_dg, variable=self.backup_db_var, state="readonly", width=300)
+        self.backup_db_combo.pack(side="left", padx=(0, 10))
+        
+        ctk.CTkButton(inner_dg, text="⟳ Refresh", command=self._backup_connect, width=100, fg_color="transparent", border_width=1).pack(side="left")
+
+        self.all_db_var = ctk.BooleanVar()
+        ctk.CTkCheckBox(inner_dg, text="Backup ALL databases", variable=self.all_db_var, command=self._toggle_all_db).pack(side="right")
 
         # Destination
-        destg = ttk.LabelFrame(p, text=" 📁 Backup Destination ", padding=12)
-        destg.pack(fill="x", pady=(0, 12))
+        destg = ctk.CTkFrame(p)
+        destg.pack(fill="x", pady=(0, 15), padx=5)
+        ctk.CTkLabel(destg, text="📁 Backup Destination", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
 
-        self.backup_path_var = tk.StringVar(value=self.config["last_backup_dir"])
-        ttk.Entry(destg, textvariable=self.backup_path_var, width=60,
-                  font=("Segoe UI", 10)).pack(side="left", padx=(0, 8), fill="x", expand=True)
-        ttk.Button(destg, text="Browse…", command=self._browse_backup_dir).pack(side="left")
+        inner_dest = ctk.CTkFrame(destg, fg_color="transparent")
+        inner_dest.pack(fill="x", padx=15, pady=(5, 15))
+        self.backup_path_var = ctk.StringVar(value=self.config["last_backup_dir"])
+        ctk.CTkEntry(inner_dest, textvariable=self.backup_path_var).pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ctk.CTkButton(inner_dest, text="Browse…", width=100, command=self._browse_backup_dir).pack(side="right")
 
         # Options
-        og = ttk.LabelFrame(p, text=" 🛠️  Options ", padding=12)
-        og.pack(fill="x", pady=(0, 12))
+        og = ctk.CTkFrame(p)
+        og.pack(fill="x", pady=(0, 15), padx=5)
+        ctk.CTkLabel(og, text="🛠️ Options", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
 
-        self.compress_var     = tk.BooleanVar(value=False)
-        self.include_rout_var = tk.BooleanVar(value=False)
-        self.no_data_var      = tk.BooleanVar(value=False)
-        ttk.Checkbutton(og, text="Compress (.zip) – saves space",
-                        variable=self.compress_var).grid(row=0, column=0, sticky="w", padx=8)
-        ttk.Checkbutton(og, text="Include Routines & Triggers",
-                        variable=self.include_rout_var).grid(row=0, column=1, sticky="w", padx=8)
-        ttk.Checkbutton(og, text="Schema only (no data)",
-                        variable=self.no_data_var).grid(row=0, column=2, sticky="w", padx=8)
+        inner_og = ctk.CTkFrame(og, fg_color="transparent")
+        inner_og.pack(fill="x", padx=15, pady=(5, 15))
+
+        self.compress_var     = ctk.BooleanVar(value=False)
+        self.include_rout_var = ctk.BooleanVar(value=False)
+        self.no_data_var      = ctk.BooleanVar(value=False)
+        
+        ctk.CTkCheckBox(inner_og, text="Compress (.zip) – saves space", variable=self.compress_var).pack(side="left", padx=(0, 20))
+        ctk.CTkCheckBox(inner_og, text="Include Routines & Triggers", variable=self.include_rout_var).pack(side="left", padx=(0, 20))
+        ctk.CTkCheckBox(inner_og, text="Schema only (no data)", variable=self.no_data_var).pack(side="left")
 
         # Action
-        ttk.Button(p, text="💾  Start Backup", command=self._do_backup,
-                   style="Accent.TButton").pack(pady=8, anchor="w")
+        ctk.CTkButton(p, text="💾 Start Backup", command=self._do_backup, font=ctk.CTkFont(size=15, weight="bold"), fg_color="#2b9348", hover_color="#007f5f", height=40).pack(pady=10, anchor="w", padx=5)
 
         # Log
-        lg = ttk.LabelFrame(p, text=" 📝 Log ", padding=8)
-        lg.pack(fill="both", expand=True)
+        lg = ctk.CTkFrame(p)
+        lg.pack(fill="both", expand=True, padx=5, pady=(10, 0))
+        ctk.CTkLabel(lg, text="📝 Log", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(10, 0))
         self.backup_log = self._make_log(lg)
 
     # ── Restore Tab ───────────────────────────────────────
     def _build_restore_tab(self):
-        p = ttk.Frame(self.tab_restore, padding=16)
+        p = ctk.CTkScrollableFrame(self.tab_restore, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
-        cg = ttk.LabelFrame(p, text=" 🔌 MySQL Connection ", padding=12)
-        cg.pack(fill="x", pady=(0, 12))
-        self._conn_fields_restore = self._make_conn_fields(cg)
-        ttk.Button(cg, text="🔗  Connect & List Databases",
-                   command=self._restore_connect, style="Accent.TButton").grid(
-                   row=4, column=0, columnspan=4, pady=(12, 0), sticky="w")
+        cg = ctk.CTkFrame(p)
+        cg.pack(fill="x", pady=(0, 15), padx=5)
+        ctk.CTkLabel(cg, text="🔌 MySQL Connection", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
+        inner_cg = ctk.CTkFrame(cg, fg_color="transparent")
+        inner_cg.pack(fill="x", padx=15, pady=5)
+        self._conn_fields_restore = self._make_conn_fields(inner_cg)
+        ctk.CTkButton(cg, text="🔗 Connect & List Databases", command=self._restore_connect, font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=15, pady=(10, 15))
 
         # Source file
-        sg = ttk.LabelFrame(p, text=" 📂 Backup File (.sql)", padding=12)
-        sg.pack(fill="x", pady=(0, 12))
-        self.restore_file_var = tk.StringVar()
-        ttk.Entry(sg, textvariable=self.restore_file_var, width=60,
-                  font=("Segoe UI", 10)).pack(side="left", padx=(0, 8), fill="x", expand=True)
-        ttk.Button(sg, text="Browse…", command=self._browse_restore_file).pack(side="left")
+        sg = ctk.CTkFrame(p)
+        sg.pack(fill="x", pady=(0, 15), padx=5)
+        ctk.CTkLabel(sg, text="📂 Backup File (.sql / .zip)", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
+        inner_sg = ctk.CTkFrame(sg, fg_color="transparent")
+        inner_sg.pack(fill="x", padx=15, pady=(5, 15))
+        self.restore_file_var = ctk.StringVar()
+        ctk.CTkEntry(inner_sg, textvariable=self.restore_file_var).pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ctk.CTkButton(inner_sg, text="Browse…", width=100, command=self._browse_restore_file).pack(side="right")
 
         # Target database
-        tg = ttk.LabelFrame(p, text=" 🗃️  Target Database ", padding=12)
-        tg.pack(fill="x", pady=(0, 12))
+        tg = ctk.CTkFrame(p)
+        tg.pack(fill="x", pady=(0, 15), padx=5)
+        ctk.CTkLabel(tg, text="🗃️ Target Database", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
+        inner_tg = ctk.CTkFrame(tg, fg_color="transparent")
+        inner_tg.pack(fill="x", padx=15, pady=(5, 15))
 
-        tk.Label(tg, text="Restore into:", bg=self.colors["bg"],
-                 fg=self.colors["fg"]).pack(side="left", padx=(0, 8))
-        self.restore_db_var = tk.StringVar()
-        self.restore_db_combo = ttk.Combobox(tg, textvariable=self.restore_db_var,
-                                             state="normal", width=35, font=("Segoe UI", 10))
-        self.restore_db_combo.pack(side="left", padx=(0, 12))
+        ctk.CTkLabel(inner_tg, text="Restore into:").pack(side="left", padx=(0, 10))
+        self.restore_db_var = ctk.StringVar()
+        self.restore_db_combo = ctk.CTkComboBox(inner_tg, variable=self.restore_db_var, width=250) # Standard state for typing
+        self.restore_db_combo.pack(side="left", padx=(0, 20))
 
-        self.create_db_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(tg, text="Create database if not exists",
-                        variable=self.create_db_var).pack(side="left")
+        self.create_db_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(inner_tg, text="Create database if not exists", variable=self.create_db_var).pack(side="left")
 
         # Action
-        ttk.Button(p, text="🔄  Start Restore", command=self._do_restore,
-                   style="Red.TButton").pack(pady=8, anchor="w")
+        ctk.CTkButton(p, text="🔄 Start Restore", command=self._do_restore, font=ctk.CTkFont(size=15, weight="bold"), fg_color="#c1121f", hover_color="#780000", height=40).pack(pady=10, anchor="w", padx=5)
 
-        lg = ttk.LabelFrame(p, text=" 📝 Log ", padding=8)
-        lg.pack(fill="both", expand=True)
+        lg = ctk.CTkFrame(p)
+        lg.pack(fill="both", expand=True, padx=5, pady=(10, 0))
+        ctk.CTkLabel(lg, text="📝 Log", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(10, 0))
         self.restore_log = self._make_log(lg)
 
     # ── History Tab ───────────────────────────────────────
     def _build_history_tab(self):
-        p = ttk.Frame(self.tab_history, padding=16)
+        p = ctk.CTkFrame(self.tab_history, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
+        # Fallback to standard tkinter Treeview for tables as CustomTkinter lacks tables
+        import tkinter.ttk as ttk
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("Treeview", background="#2b2b2b", foreground="white", fieldbackground="#2b2b2b", borderwidth=0, rowheight=30)
+        style.configure("Treeview.Heading", background="#333333", foreground="white", font=("Segoe UI", 10, "bold"), borderwidth=0)
+        style.map("Treeview", background=[("selected", "#1f538d")])
+
         cols = ("timestamp", "action", "database", "file", "status")
-        self.hist_tree = ttk.Treeview(p, columns=cols, show="headings", height=18)
-        for col, w, lbl in zip(cols, [155, 70, 160, 280, 80],
-                               ["Timestamp", "Action", "Database", "File", "Status"]):
+        tree_frame = ctk.CTkFrame(p)
+        tree_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        self.hist_tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=15)
+        widths = [140, 80, 150, 300, 80]
+        labels = ["Timestamp", "Action", "Database", "File", "Status"]
+        for col, w, lbl in zip(cols, widths, labels):
             self.hist_tree.heading(col, text=lbl)
             self.hist_tree.column(col, width=w, anchor="w")
 
-        vsb = ttk.Scrollbar(p, orient="vertical", command=self.hist_tree.yview)
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.hist_tree.yview)
         self.hist_tree.configure(yscrollcommand=vsb.set)
-        self.hist_tree.pack(side="left", fill="both", expand=True)
-        vsb.pack(side="right", fill="y")
+        self.hist_tree.pack(side="left", fill="both", expand=True, padx=(1,0), pady=1)
+        vsb.pack(side="right", fill="y", padx=(0,1), pady=1)
 
-        btn_frame = ttk.Frame(self.tab_history)
-        btn_frame.pack(fill="x", padx=16, pady=(0, 10))
-        ttk.Button(btn_frame, text="⟳ Refresh", command=self._refresh_history).pack(side="left", padx=4)
-        ttk.Button(btn_frame, text="🗑️  Clear History",
-                   command=self._clear_history, style="Red.TButton").pack(side="left", padx=4)
+        btn_frame = ctk.CTkFrame(p, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=5, pady=10)
+        ctk.CTkButton(btn_frame, text="⟳ Refresh", command=self._refresh_history, width=120).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(btn_frame, text="🗑️ Clear History", command=self._clear_history, width=120, fg_color="#c1121f", hover_color="#780000").pack(side="left")
 
-        self._refresh_history()
+        self.after(200, self._refresh_history)
 
     # ── Settings Tab ─────────────────────────────────────
     def _build_settings_tab(self):
-        p = ttk.Frame(self.tab_settings, padding=24)
+        p = ctk.CTkScrollableFrame(self.tab_settings, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
-        ttk.Label(p, text="Default MySQL Connection Settings",
-                  font=("Segoe UI", 13, "bold")).grid(row=0, column=0, columnspan=3,
-                                                       sticky="w", pady=(0, 16))
+        cg = ctk.CTkFrame(p)
+        cg.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(cg, text="Default MySQL Connection Settings", font=ctk.CTkFont(size=16, weight="bold")).pack(anchor="w", padx=20, pady=(20, 10))
+
+        inner_cg = ctk.CTkFrame(cg, fg_color="transparent")
+        inner_cg.pack(fill="both", padx=20, pady=(0, 20))
+
         fields = [("Host:", "s_host"), ("Port:", "s_port"),
                   ("User:", "s_user"), ("Password:", "s_pass")]
         self._settings_vars = {}
         for i, (lbl, key) in enumerate(fields):
-            ttk.Label(p, text=lbl).grid(row=i+1, column=0, sticky="w", pady=6, padx=(0, 12))
-            var = tk.StringVar()
+            row_f = ctk.CTkFrame(inner_cg, fg_color="transparent")
+            row_f.pack(fill="x", pady=5)
+            ctk.CTkLabel(row_f, text=lbl, width=100, anchor="w").pack(side="left")
+            var = ctk.StringVar()
             self._settings_vars[key] = var
             show = "*" if key == "s_pass" else ""
-            ttk.Entry(p, textvariable=var, width=32, show=show).grid(row=i+1, column=1, sticky="w")
+            ctk.CTkEntry(row_f, textvariable=var, width=250, show=show).pack(side="left")
 
-        ttk.Label(p, text="Default Backup Directory:").grid(row=6, column=0, sticky="w", pady=6)
-        self.s_backup_dir = tk.StringVar()
-        ttk.Entry(p, textvariable=self.s_backup_dir, width=45).grid(row=6, column=1, sticky="w")
-        ttk.Button(p, text="Browse…", command=self._browse_settings_dir).grid(row=6, column=2, padx=8)
+        row_f = ctk.CTkFrame(inner_cg, fg_color="transparent")
+        row_f.pack(fill="x", pady=15)
+        ctk.CTkLabel(row_f, text="Default Backup Directory:", width=180, anchor="w").pack(side="left")
+        self.s_backup_dir = ctk.StringVar()
+        ctk.CTkEntry(row_f, textvariable=self.s_backup_dir, width=350).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(row_f, text="Browse…", width=100, command=self._browse_settings_dir).pack(side="left")
 
-        ttk.Button(p, text="💾  Save Settings", command=self._save_settings,
-                   style="Green.TButton").grid(row=8, column=0, columnspan=2, sticky="w", pady=20)
+        ctk.CTkButton(cg, text="💾 Save Settings", command=self._save_settings, font=ctk.CTkFont(weight="bold"), fg_color="#2b9348", hover_color="#007f5f").pack(anchor="w", padx=20, pady=(0, 20))
 
-        # mysqldump path info
-        ttk.Separator(p, orient="horizontal").grid(row=9, column=0, columnspan=3, sticky="ew", pady=8)
-        ttk.Label(p, text="mysqldump detected at:").grid(row=10, column=0, sticky="w")
+        # Paths
+        pg = ctk.CTkFrame(p)
+        pg.pack(fill="x", padx=5, pady=15)
+        ctk.CTkLabel(pg, text="System Paths", font=ctk.CTkFont(size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+        
+        inner_pg = ctk.CTkFrame(pg, fg_color="transparent")
+        inner_pg.pack(fill="x", padx=20, pady=(0, 20))
+        
+        row1 = ctk.CTkFrame(inner_pg, fg_color="transparent")
+        row1.pack(fill="x", pady=2)
+        ctk.CTkLabel(row1, text="mysqldump detected at:", width=180, anchor="w").pack(side="left")
         dump_exe = find_mysql_exe("mysqldump")
-        ttk.Label(p, text=dump_exe, foreground=self.colors["acc"]).grid(row=10, column=1, sticky="w")
-        ttk.Label(p, text="mysql detected at:").grid(row=11, column=0, sticky="w", pady=4)
+        ctk.CTkLabel(row1, text=dump_exe, text_color="#219ebc").pack(side="left")
+
+        row2 = ctk.CTkFrame(inner_pg, fg_color="transparent")
+        row2.pack(fill="x", pady=2)
+        ctk.CTkLabel(row2, text="mysql detected at:", width=180, anchor="w").pack(side="left")
         mysql_exe = find_mysql_exe("mysql")
-        ttk.Label(p, text=mysql_exe, foreground=self.colors["acc"]).grid(row=11, column=1, sticky="w")
+        ctk.CTkLabel(row2, text=mysql_exe, text_color="#219ebc").pack(side="left")
 
     # ── Shared widgets ────────────────────────────────────
     def _make_conn_fields(self, parent):
-        """Renders host/port/user/pass fields and returns their StringVars."""
+        """Renders host/port/user/pass fields horizontally and returns their StringVars."""
         labels  = ["Host:", "Port:", "User:", "Password:"]
         keys    = ["host",  "port",  "user",  "password"]
-        widths  = [22, 8, 18, 22]
+        widths  = [140, 60, 120, 140]
         vars_   = {}
         for col, (lbl, key, w) in enumerate(zip(labels, keys, widths)):
-            ttk.Label(parent, text=lbl).grid(row=0, column=col*2, sticky="w", padx=(8 if col else 0, 4))
-            var = tk.StringVar(value=self.config.get(key, ""))
+            ctk.CTkLabel(parent, text=lbl).grid(row=0, column=col*2, sticky="w", padx=(10 if col else 0, 5))
+            var = ctk.StringVar(value=self.config.get(key, ""))
             vars_[key] = var
             show = "*" if key == "password" else ""
-            ttk.Entry(parent, textvariable=var, width=w, show=show).grid(row=0, column=col*2+1, sticky="w", padx=(0, 12))
+            ctk.CTkEntry(parent, textvariable=var, width=w, show=show).grid(row=0, column=col*2+1, sticky="w")
         return vars_
 
     def _make_log(self, parent):
-        txt = scrolledtext.ScrolledText(parent, height=8, bg="#181825", fg="#cdd6f4",
-                                        font=("Consolas", 9), insertbackground="#cdd6f4",
-                                        relief="flat", wrap="word")
-        txt.pack(fill="both", expand=True)
+        txt = ctk.CTkTextbox(parent, height=150, fg_color="#181818", text_color="#cdd6f4", font=ctk.CTkFont(family="Consolas", size=12))
+        txt.pack(fill="both", expand=True, padx=15, pady=15)
         txt.configure(state="disabled")
         return txt
 
