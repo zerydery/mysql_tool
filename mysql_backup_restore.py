@@ -227,7 +227,7 @@ class MySQLBackupApp(tk.Tk):
         self.compress_var     = tk.BooleanVar(value=False)
         self.include_rout_var = tk.BooleanVar(value=False)
         self.no_data_var      = tk.BooleanVar(value=False)
-        ttk.Checkbutton(og, text="Compress (.sql.gz) – requires gzip in PATH",
+        ttk.Checkbutton(og, text="Compress (.zip) – saves space",
                         variable=self.compress_var).grid(row=0, column=0, sticky="w", padx=8)
         ttk.Checkbutton(og, text="Include Routines & Triggers",
                         variable=self.include_rout_var).grid(row=0, column=1, sticky="w", padx=8)
@@ -548,12 +548,28 @@ class MySQLBackupApp(tk.Tk):
                                         text=True, timeout=600, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
 
             if result.returncode == 0:
-                size = os.path.getsize(filepath)
+                final_path = filepath
+                
+                # Compress if requested
+                if self.compress_var.get():
+                    self._set_status("Compressing backup…")
+                    import zipfile
+                    zip_path = filepath + ".zip"
+                    try:
+                        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                            zf.write(filepath, os.path.basename(filepath))
+                        os.remove(filepath) # Remove the uncompressed sql file
+                        final_path = zip_path
+                        self._log(self.backup_log, f"📦 Compressed successfully to {os.path.basename(final_path)}", "#a6e3a1")
+                    except Exception as ze:
+                        self._log(self.backup_log, f"⚠️ Compression failed: {ze}, keeping original .sql", "#fab387")
+                
+                size = os.path.getsize(final_path)
                 size_str = f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.2f} MB"
-                msg = f"✅ Backup SUCCESS — {label} → {filepath} ({size_str})"
+                msg = f"✅ Backup SUCCESS — {label} → {final_path} ({size_str})"
                 self._log(self.backup_log, msg, "#a6e3a1")
                 self._set_status("Backup complete.")
-                self._add_history("BACKUP", label, filepath, "OK")
+                self._add_history("BACKUP", label, final_path, "OK")
             else:
                 err = result.stderr.strip()
                 self._log(self.backup_log, f"❌ FAILED: {err}", "#f38ba8")
@@ -605,11 +621,40 @@ class MySQLBackupApp(tk.Tk):
                 if r.returncode != 0 and r.stderr:
                     self._log(self.restore_log, f"Warning (create db): {r.stderr.strip()}", "#fab387")
 
-            # Import
             import_cmd = base_cmd + [db_name]
-            with open(src_file, "r", encoding="utf-8", errors="replace") as f:
+
+            # Handle .zip extraction natively
+            extract_dir = None
+            sql_file_to_import = src_file
+            
+            if src_file.lower().endswith('.zip'):
+                self._set_status("Extracting backup archive…")
+                import zipfile
+                import tempfile
+                extract_dir = tempfile.mkdtemp()
+                try:
+                    with zipfile.ZipFile(src_file, 'r') as zf:
+                        # Find the first .sql file in zip
+                        sql_files = [f for f in zf.namelist() if f.lower().endswith('.sql')]
+                        if not sql_files:
+                            raise Exception("No .sql file found inside the ZIP archive.")
+                        extracted_path = zf.extract(sql_files[0], extract_dir)
+                        sql_file_to_import = extracted_path
+                except Exception as ze:
+                    self._log(self.restore_log, f"❌ ZIP extraction failed: {ze}", "#f38ba8")
+                    self._set_status("Restore failed.")
+                    if extract_dir and os.path.exists(extract_dir):
+                        shutil.rmtree(extract_dir, ignore_errors=True)
+                    return
+
+            self._set_status("Importing SQL data…")
+            with open(sql_file_to_import, "r", encoding="utf-8", errors="replace") as f:
                 result = subprocess.run(import_cmd, stdin=f, capture_output=True,
                                         text=True, timeout=3600, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+
+            # Cleanup temp zip extraction
+            if extract_dir and os.path.exists(extract_dir):
+                shutil.rmtree(extract_dir, ignore_errors=True)
 
             if result.returncode == 0:
                 msg = f"✅ Restore SUCCESS — {src_file} → {db_name}"
