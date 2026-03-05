@@ -5,7 +5,7 @@ A standalone PyInstaller executable and Python script to backup and restore MySQ
 This tool was built to solve the issue of migrating databases between devices without requiring Python or the MySQL CLI to be in the system's `PATH`. It dynamically locates local MySQL binaries from common web stacks (XAMPP, Laragon, standalone Server) across all drives.
 
 ## Screenshots
-*(Provide screenshots of the UI here)*
+![MySQL Backup & Restore Tool Screenshot](screenshot.png)
 
 ## Features
 - **Standalone executable**: Compile it once, run it anywhere on Windows without `Python` installed.
